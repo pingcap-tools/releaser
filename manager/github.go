@@ -7,12 +7,20 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// GetReleaseNoteRepo gets repo info
-func (m *Manager) GetReleaseNoteRepo() (*github.Repository, error) {
-	ctx, cancel := utils.NewTimeoutContext()
-	defer cancel()
-	repo, _, err := m.Github.Repositories.Get(ctx, m.ReleaseNoteRepo.Owner, m.ReleaseNoteRepo.Repo)
-	return repo, errors.Trace(err)
+// GetReleaseNoteRepos gets repos info
+func (m *Manager) GetReleaseNoteRepos() ([]*github.Repository, error) {
+	var githubRepos []*github.Repository
+
+	for _, repo := range m.Repos {
+		ctx, _ := utils.NewTimeoutContext()
+		githubRepo, _, err := m.Github.Repositories.Get(ctx, repo.Owner, repo.Repo)
+		if err != nil {
+			return githubRepos, errors.Trace(err)
+		}
+		githubRepos = append(githubRepos, githubRepo)
+	}
+
+	return githubRepos, nil
 }
 
 func initGithubClient(token string) (*github.Client, error) {
