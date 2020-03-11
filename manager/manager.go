@@ -13,12 +13,13 @@ import (
 
 // Manager struct
 type Manager struct {
-	Config        *config.Config
-	Opt           *Option
-	Repos         []types.Repo
-	Github        *github.Client
-	NoteCollector *note.Collector
-	PullCollector *pull.Collector
+	Config         *config.Config
+	Opt            *Option
+	Repos          []types.Repo
+	RelaseNoteRepo types.Repo
+	Github         *github.Client
+	NoteCollector  *note.Collector
+	PullCollector  *pull.Collector
 }
 
 // Option for usage
@@ -32,18 +33,23 @@ func New(cfg *config.Config, opt *Option) (*Manager, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	relaseNoteRepo, err := parseRepo(cfg.ReleaseNoteRepo)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
 	githubClient, err := initGithubClient(cfg.GithubToken)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	m := Manager{
-		Config:        cfg,
-		Opt:           opt,
-		Repos:         repos,
-		Github:        githubClient,
-		NoteCollector: note.New(githubClient),
-		PullCollector: pull.New(githubClient),
+		Config:         cfg,
+		Opt:            opt,
+		Repos:          repos,
+		RelaseNoteRepo: relaseNoteRepo,
+		Github:         githubClient,
+		NoteCollector:  note.New(githubClient, cfg, relaseNoteRepo),
+		PullCollector:  pull.New(githubClient, cfg),
 	}
 	if _, err := m.GetReleaseNoteRepos(); err != nil {
 		return nil, errors.Trace(err)
@@ -57,6 +63,8 @@ func (m *Manager) Run(subCommand string) error {
 	switch subCommand {
 	case types.SubCmdPRList:
 		return errors.Trace(m.runRRList())
+	case types.SubCmdReleaseNotes:
+		return errors.Trace(m.runReleaseNotes())
 	default:
 		return errors.New("invalid sub command")
 	}

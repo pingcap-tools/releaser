@@ -38,27 +38,20 @@ var (
 	cmdReleaseNotesVersion         = cmdReleaseNotes.String(nmVersion, "", "release version")
 	cmdReleaseNotesConfig          = cmdReleaseNotes.String(nmConfig, "", "config path")
 	// Release sub command
-	cmdRelease                = flag.NewFlagSet(types.SubCmdRelease, flag.ExitOnError)
-	cmdReleaseToken           = cmdRelease.String(nmToken, "", "github token")
-	cmdReleaseReleaseNoteRepo = cmdRelease.String(nmReleaseNoteRepo, "", "release note repo")
-	cmdReleaseVersion         = cmdRelease.String(nmVersion, "", "release version")
-	cmdReleaseConfig          = cmdRelease.String(nmConfig, "", "config path")
-	// Build sub command
-	cmdBuild                = flag.NewFlagSet(types.SubCmdBuild, flag.ExitOnError)
-	cmdBuildToken           = cmdBuild.String(nmToken, "", "github token")
-	cmdBuildReleaseNoteRepo = cmdBuild.String(nmReleaseNoteRepo, "", "release note repo")
-	cmdBuildVersion         = cmdBuild.String(nmVersion, "", "release version")
-	cmdBuildConfig          = cmdBuild.String(nmConfig, "", "config path")
+	cmdCheckModule                = flag.NewFlagSet(types.SubCmdCheckModule, flag.ExitOnError)
+	cmdCheckModuleToken           = cmdCheckModule.String(nmToken, "", "github token")
+	cmdCheckModuleReleaseNoteRepo = cmdCheckModule.String(nmReleaseNoteRepo, "", "release note repo")
+	cmdCheckModuleVersion         = cmdCheckModule.String(nmVersion, "", "release version")
+	cmdCheckModuleConfig          = cmdCheckModule.String(nmConfig, "", "config path")
 )
 
 func init() {
 	flag.Parse()
 	if len(os.Args) < 2 {
-		fmt.Printf("expected %s, %s, %s or %s subcommands\n",
+		fmt.Printf("expected %s, %s or %s subcommands\n",
 			types.SubCmdPRList,
 			types.SubCmdReleaseNotes,
-			types.SubCmdRelease,
-			types.SubCmdBuild)
+			types.SubCmdCheckModule)
 		os.Exit(1)
 	}
 
@@ -73,47 +66,40 @@ func init() {
 	case types.SubCmdReleaseNotes:
 		cmdReleaseNotes.Parse(os.Args[2:])
 		subCommand = types.SubCmdReleaseNotes
-		token = *cmdPRListToken
-		releaseNoteRepo = *cmdPRListReleaseNoteRepo
-		version = *cmdPRListVersion
-		configPath = *cmdPRListConfig
-	case types.SubCmdRelease:
-		cmdRelease.Parse(os.Args[2:])
-		subCommand = types.SubCmdRelease
-		token = *cmdReleaseToken
-		releaseNoteRepo = *cmdReleaseReleaseNoteRepo
-		version = *cmdReleaseVersion
-		configPath = *cmdReleaseConfig
-	case types.SubCmdBuild:
-		cmdBuild.Parse(os.Args[2:])
-		subCommand = types.SubCmdBuild
-		token = *cmdBuildToken
-		releaseNoteRepo = *cmdBuildReleaseNoteRepo
-		version = *cmdBuildVersion
-		version = *cmdBuildVersion
+		token = *cmdReleaseNotesToken
+		releaseNoteRepo = *cmdReleaseNotesReleaseNoteRepo
+		version = *cmdReleaseNotesVersion
+		configPath = *cmdReleaseNotesConfig
+	case types.SubCmdCheckModule:
+		cmdCheckModule.Parse(os.Args[2:])
+		subCommand = types.SubCmdCheckModule
+		token = *cmdCheckModuleToken
+		releaseNoteRepo = *cmdCheckModuleReleaseNoteRepo
+		version = *cmdCheckModuleVersion
+		configPath = *cmdCheckModuleConfig
 	}
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Printf("expected %s, %s, %s or %s subcommands\n",
+		fmt.Printf("expected %s, %s or %s subcommands\n",
 			types.SubCmdPRList,
 			types.SubCmdReleaseNotes,
-			types.SubCmdRelease,
-			types.SubCmdBuild)
+			types.SubCmdCheckModule)
 		os.Exit(1)
 	}
 
 	cfg := config.New()
 	if err := cfg.Read(configPath); err != nil {
-
+		log.Fatalf("%+v", err)
 	}
+	// cfg.Print()
 
 	m, err := manager.New(cfg, &manager.Option{
 		Version: version,
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("%+v", err)
 	}
 
 	if err := m.Run(subCommand); err != nil {

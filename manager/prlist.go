@@ -15,6 +15,10 @@ func (m *Manager) runRRList() error {
 	for _, repo := range m.Repos {
 		pulls, err := m.PullCollector.ListPRList(repo, m.Opt.Version)
 		if err != nil {
+			if strings.Contains(err.Error(), "milestone not found") {
+				fmt.Printf("can not find milestone %s in %s\n", m.Opt.Version, repo.String())
+				continue
+			}
 			return errors.Trace(err)
 		}
 		for _, pull := range pulls {
