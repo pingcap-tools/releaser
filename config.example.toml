@@ -1,4 +1,6 @@
 github-token = ""
+slack-token = ""
+slack-channel = ""
 repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd"]
 release-note-repo = "pingcap/release-note"
 release-note-path = "/{repo}"

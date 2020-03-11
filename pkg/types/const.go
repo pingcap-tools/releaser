@@ -7,4 +7,6 @@ const (
 	SubCmdReleaseNotes = "release-notes"
 	// SubCmdCheckModule is the command which checks modules consistent through repos
 	SubCmdCheckModule = "check-module"
+	// SubCmdGenerateReleaseNote is the command which generate release notes via pull requests
+	SubCmdGenerateReleaseNote = "generate-release-note"
 )

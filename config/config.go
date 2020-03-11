@@ -12,6 +12,8 @@ import (
 // Config is cherry picker config struct
 type Config struct {
 	GithubToken     string   `toml:"github-token"`
+	SlackToken      string   `toml:"slack-token"`
+	SlackChannel    string   `toml:"slack-channel"`
 	Repos           []string `toml:"repos"`
 	ReleaseNoteRepo string   `toml:"release-note-repo"`
 	ReleaseNotePath string   `toml:"release-note-path"`

@@ -14,6 +14,8 @@ const (
 	iconNoNote  = "x"
 )
 
+var shouldExistLangs = []string{"cn", "en"}
+
 var (
 	releaseNoteStart     = regexp.MustCompile(`^.*release ?note.*$`)
 	releaseNoteListMatch = regexp.MustCompile(`^- ?(.*)$`)
@@ -21,6 +23,7 @@ var (
 )
 
 func (m *Manager) runReleaseNotes() error {
+	var errs []error
 	for _, repo := range m.Repos {
 		pulls, err := m.PullCollector.ListPRList(repo, m.Opt.Version)
 		if err != nil {
@@ -35,14 +38,18 @@ func (m *Manager) runReleaseNotes() error {
 			fmt.Printf("get release notes error %+v\n", err)
 		}
 		var (
-			langs       []string
-			tableString = strings.Builder{}
-			table       = tablewriter.NewWriter(&tableString)
+			langs            []string
+			tableString      strings.Builder
+			table            = tablewriter.NewWriter(&tableString)
+			slackTableString strings.Builder
+			slackTable       = tablewriter.NewWriter(&slackTableString)
+			rows             [][]string
 		)
 		for _, releaseNote := range releaseNotes {
 			langs = append(langs, releaseNote.Lang)
 		}
 		table.SetHeader(append([]string{"Repo", "PR", "Author", "Title", "Release Note"}, langs...))
+		slackTable.SetHeader(append([]string{"Repo", "PR", "Author", "Title", "Release Note"}, langs...))
 		for _, pull := range pulls {
 			var (
 				repo                  = repo.String()
@@ -70,12 +77,55 @@ func (m *Manager) runReleaseNotes() error {
 					langStatus = append(langStatus, iconNoNote)
 				}
 			}
-			table.Append(append([]string{repo, pullStr, author, title}, langStatus...))
+			rows = append(rows, (append([]string{repo, pullStr, author, title}, langStatus...)))
 		}
+
+		for _, row := range rows {
+			table.Append(row)
+			allOk := true
+			for i := 0; i < len(langs); i++ {
+				if row[len(row)-i-1] == iconNoNote {
+					allOk = false
+				}
+			}
+			if !allOk && row[len(row)-len(langs)-1] == iconHasNote {
+				slackTable.Append(row)
+			}
+		}
+
 		table.Render()
+		slackTable.Render()
+
+		if len(langs) != 2 {
+			slackTableString.Reset()
+			var missingLangs []string
+			for _, lang := range shouldExistLangs {
+				has := false
+				for _, existLang := range langs {
+					if lang == existLang {
+						has = true
+					}
+				}
+				if !has {
+					missingLangs = append(missingLangs, lang)
+				}
+			}
+			existLangs := strings.Join(langs, ", ")
+			if len(langs) == 0 {
+				existLangs = "None"
+			}
+			fmt.Fprintf(&slackTableString, "Found language: %s. Missing: %s.", existLangs, strings.Join(missingLangs, ", "))
+		}
+
 		fmt.Println(tableString.String())
+		errs = append(errs, m.SendMessage(fmt.Sprintf("```%s Version:%s\n%s```", repo.String(), m.Opt.Version, slackTableString.String())))
 	}
 
+	for _, err := range errs {
+		if err != nil {
+			return errors.Trace(err)
+		}
+	}
 	return nil
 }
 

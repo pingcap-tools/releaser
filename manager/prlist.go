@@ -6,17 +6,21 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/olekukonko/tablewriter"
+	"github.com/you06/releaser/pkg/types"
 )
 
 func (m *Manager) runRRList() error {
-	tableString := strings.Builder{}
-	table := tablewriter.NewWriter(&tableString)
+	var (
+		tableString      = strings.Builder{}
+		table            = tablewriter.NewWriter(&tableString)
+		noMilestoneRepos types.Repos
+	)
 	table.SetHeader([]string{"Repo", "PR", "Author", "Title"})
 	for _, repo := range m.Repos {
 		pulls, err := m.PullCollector.ListPRList(repo, m.Opt.Version)
 		if err != nil {
 			if strings.Contains(err.Error(), "milestone not found") {
-				fmt.Printf("can not find milestone %s in %s\n", m.Opt.Version, repo.String())
+				noMilestoneRepos = append(noMilestoneRepos, repo)
 				continue
 			}
 			return errors.Trace(err)
@@ -33,5 +37,9 @@ func (m *Manager) runRRList() error {
 	}
 	table.Render()
 	fmt.Println(tableString.String())
+
+	if len(noMilestoneRepos) > 0 {
+		fmt.Printf("No milestone repos: %s\n", noMilestoneRepos)
+	}
 	return nil
 }

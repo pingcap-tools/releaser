@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/go-github/v29/github"
 	"github.com/juju/errors"
+	"github.com/nlopes/slack"
 	"github.com/you06/releaser/config"
 	"github.com/you06/releaser/pkg/note"
 	"github.com/you06/releaser/pkg/pull"
@@ -18,6 +19,7 @@ type Manager struct {
 	Repos          []types.Repo
 	RelaseNoteRepo types.Repo
 	Github         *github.Client
+	Slack          *slack.Client
 	NoteCollector  *note.Collector
 	PullCollector  *pull.Collector
 }
@@ -48,6 +50,7 @@ func New(cfg *config.Config, opt *Option) (*Manager, error) {
 		Repos:          repos,
 		RelaseNoteRepo: relaseNoteRepo,
 		Github:         githubClient,
+		Slack:          initSlackClient(cfg.SlackToken),
 		NoteCollector:  note.New(githubClient, cfg, relaseNoteRepo),
 		PullCollector:  pull.New(githubClient, cfg),
 	}
@@ -65,6 +68,8 @@ func (m *Manager) Run(subCommand string) error {
 		return errors.Trace(m.runRRList())
 	case types.SubCmdReleaseNotes:
 		return errors.Trace(m.runReleaseNotes())
+	case types.SubCmdGenerateReleaseNote:
+		return errors.Trace(m.runGenerateReleaseNote())
 	default:
 		return errors.New("invalid sub command")
 	}

@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Repo struct
 type Repo struct {
@@ -8,7 +11,19 @@ type Repo struct {
 	Repo  string
 }
 
+// Repos for list
+type Repos []Repo
+
 // String
 func (r Repo) String() string {
 	return fmt.Sprintf("%s/%s", r.Owner, r.Repo)
+}
+
+// String
+func (r Repos) String() string {
+	var repoStrs []string
+	for _, repo := range r {
+		repoStrs = append(repoStrs, repo.String())
+	}
+	return strings.Join(repoStrs, ", ")
 }
