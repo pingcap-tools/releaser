@@ -16,6 +16,7 @@ import (
 type Manager struct {
 	Config         *config.Config
 	Opt            *Option
+	User           *github.User
 	Repos          []types.Repo
 	RelaseNoteRepo types.Repo
 	Github         *github.Client
@@ -54,6 +55,11 @@ func New(cfg *config.Config, opt *Option) (*Manager, error) {
 		NoteCollector:  note.New(githubClient, cfg, relaseNoteRepo),
 		PullCollector:  pull.New(githubClient, cfg),
 	}
+	user, err := m.getGithubUser()
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	m.User = user
 	if _, err := m.GetReleaseNoteRepos(); err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -70,6 +76,8 @@ func (m *Manager) Run(subCommand string) error {
 		return errors.Trace(m.runReleaseNotes())
 	case types.SubCmdGenerateReleaseNote:
 		return errors.Trace(m.runGenerateReleaseNote())
+	case types.SubCmdCheckModule:
+		return errors.Trace(m.runCheckModule())
 	default:
 		return errors.New("invalid sub command")
 	}

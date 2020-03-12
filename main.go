@@ -43,7 +43,7 @@ var (
 
 func init() {
 	flag.Parse()
-	if len(os.Args) < 2 {
+	if len(os.Args) < 2 || os.Args[1] == "-h" {
 		fmt.Printf("expected %s, %s or %s subcommands\n",
 			types.SubCmdPRList,
 			types.SubCmdReleaseNotes,
@@ -98,6 +98,6 @@ func main() {
 	}
 
 	if err := m.Run(subCommand); err != nil {
-		log.Fatal(err)
+		log.Fatalf("%+v\n", err)
 	}
 }

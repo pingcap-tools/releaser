@@ -76,6 +76,33 @@ func (c *Collector) ListAllMilestones(repo types.Repo) ([]*github.Milestone, err
 	return all, nil
 }
 
+// ListAllOpenedMilestones lists milestones in opened state
+func (c *Collector) ListAllOpenedMilestones(repo types.Repo) ([]*github.Milestone, error) {
+	var (
+		page    = 0
+		perpage = 100
+		all     []*github.Milestone
+		batch   []*github.Milestone
+		err     error
+	)
+	for page == 0 || len(batch) == perpage {
+		page++
+		ctx, _ := utils.NewTimeoutContext()
+		batch, _, err = c.github.Issues.ListMilestones(ctx, repo.Owner, repo.Repo, &github.MilestoneListOptions{
+			State: "open",
+			ListOptions: github.ListOptions{
+				Page:    page,
+				PerPage: perpage,
+			},
+		})
+		if err != nil {
+			return []*github.Milestone{}, errors.Trace(err)
+		}
+		all = append(all, batch...)
+	}
+	return all, nil
+}
+
 // ListAllMilestoneIssues lists issues and pull requests in a milestone
 func (c *Collector) ListAllMilestoneIssues(repo types.Repo, milestone *github.Milestone) ([]*github.Issue, []*github.PullRequest, error) {
 	var (

@@ -18,11 +18,15 @@ type Config struct {
 	ReleaseNoteRepo string   `toml:"release-note-repo"`
 	ReleaseNotePath string   `toml:"release-note-path"`
 	PullLanguage    string   `toml:"pull-language"`
+	GitDir          string   `toml:"git-dir"`
 }
 
 // New inits config by default
 func New() *Config {
-	return &Config{}
+	return &Config{
+		PullLanguage: "en",
+		GitDir:       "/tmp",
+	}
 }
 
 // Read from file

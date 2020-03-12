@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-github/v29/github"
 	"github.com/juju/errors"
 	"github.com/you06/releaser/config"
+	"github.com/you06/releaser/pkg/parser"
 	"github.com/you06/releaser/pkg/types"
 	"github.com/you06/releaser/pkg/utils"
 )
@@ -25,30 +26,16 @@ type Collector struct {
 	relaseNoteRepo types.Repo
 }
 
-// ReleaseNote is single release note
-type ReleaseNote struct {
-	Repo       types.Repo
-	PullNumber int
-	Note       string
-}
-
-// ReleaseNoteLang collects all release notes of a language
-type ReleaseNoteLang struct {
-	Lang    string
-	Notes   []ReleaseNote
-	Version string
-}
-
 // New creates Collector instance
 func New(g *github.Client, config *config.Config, relaseNoteRepo types.Repo) *Collector {
 	return &Collector{g, config, relaseNoteRepo}
 }
 
 // ListReleaseNote lists release notes
-func (c *Collector) ListReleaseNote(repo types.Repo, version string) ([]ReleaseNoteLang, error) {
+func (c *Collector) ListReleaseNote(repo types.Repo, version string) ([]parser.ReleaseNoteLang, error) {
 	var (
 		filePath = strings.ReplaceAll(c.Config.ReleaseNotePath, "{repo}", repo.Repo)
-		notes    []ReleaseNoteLang
+		notes    []parser.ReleaseNoteLang
 	)
 	version = strings.ToLower(strings.Trim(version, "v"))
 	contents, err := c.ListContents(repo, filePath, version)
@@ -56,7 +43,10 @@ func (c *Collector) ListReleaseNote(repo types.Repo, version string) ([]ReleaseN
 		return notes, errors.Trace(err)
 	}
 	for _, content := range contents {
-		name := content.GetName()
+		var (
+			name     = content.GetName()
+			fullPath = path.Join(filePath, name)
+		)
 		if content.GetType() != "file" {
 			continue
 		}
@@ -64,12 +54,13 @@ func (c *Collector) ListReleaseNote(repo types.Repo, version string) ([]ReleaseN
 		if !match {
 			continue
 		}
-		releaseNotes, err := c.ParseContent(repo, filePath, name)
+		releaseNotes, err := c.ParseContent(repo, fullPath)
 		if err != nil {
 			return notes, errors.Trace(err)
 		}
-		notes = append(notes, ReleaseNoteLang{
+		notes = append(notes, parser.ReleaseNoteLang{
 			Lang:  lang,
+			Path:  fullPath,
 			Notes: releaseNotes,
 		})
 	}
@@ -90,9 +81,9 @@ func (c *Collector) ListContents(repo types.Repo, filePath, version string) ([]*
 }
 
 // ParseContent parses content and get all release notes
-func (c *Collector) ParseContent(repo types.Repo, filePath, name string) ([]ReleaseNote, error) {
-	var notes []ReleaseNote
-	content, err := c.GetFileContent(repo, path.Join(filePath, name))
+func (c *Collector) ParseContent(repo types.Repo, fullPath string) ([]parser.ReleaseNote, error) {
+	var notes []parser.ReleaseNote
+	content, err := c.GetFileContent(repo, fullPath)
 	if err != nil {
 		return notes, errors.Trace(err)
 	}
@@ -106,7 +97,7 @@ func (c *Collector) ParseContent(repo types.Repo, filePath, name string) ([]Rele
 		if err != nil {
 			return notes, errors.Trace(err)
 		}
-		notes = append(notes, ReleaseNote{
+		notes = append(notes, parser.ReleaseNote{
 			Repo: types.Repo{
 				Owner: owner,
 				Repo:  repo,

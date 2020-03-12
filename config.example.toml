@@ -5,3 +5,4 @@ repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd"]
 release-note-repo = "pingcap/release-note"
 release-note-path = "/{repo}"
 pull-language = "en"
+git-dir = "/tmp"
