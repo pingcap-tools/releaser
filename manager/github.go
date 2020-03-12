@@ -35,8 +35,8 @@ func initGithubClient(token string) (*github.Client, error) {
 	return github.NewClient(tc), nil
 }
 
-func (m *Manager) getGithubUser() (*github.User, error) {
+func getGithubUser(githubClient *github.Client) (*github.User, error) {
 	ctx, _ := utils.NewTimeoutContext()
-	user, _, err := m.Github.Users.Get(ctx, "")
+	user, _, err := githubClient.Users.Get(ctx, "")
 	return user, errors.Trace(err)
 }

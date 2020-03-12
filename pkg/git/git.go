@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/google/go-github/v29/github"
 	"github.com/juju/errors"
@@ -101,6 +102,22 @@ func (g *Git) Push(branch string) error {
 	)
 	_, err := do(dir, "git", "push", baseRepo, branch, "--force")
 	return errors.Trace(err)
+}
+
+// CheckTagSHA check SHA of a tag
+func (g *Git) CheckTagSHA(tag string) (string, error) {
+	dir := path.Join(g.BaseDir, g.Dir)
+	sha, err := do(dir, "git", "rev-list", "-n", "1", tag)
+	if err != nil {
+		noVTag := strings.TrimLeft(tag, "v")
+		if tag != noVTag {
+			sha, err = do(dir, "git", "rev-list", "-n", "1", noVTag)
+		}
+	}
+	if err != nil {
+		return "", errors.Trace(err)
+	}
+	return strings.Trim(sha, " "), nil
 }
 
 // Clear delete cloned repo

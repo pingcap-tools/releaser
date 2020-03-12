@@ -7,6 +7,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/nlopes/slack"
 	"github.com/you06/releaser/config"
+	"github.com/you06/releaser/pkg/dependency"
 	"github.com/you06/releaser/pkg/note"
 	"github.com/you06/releaser/pkg/pull"
 	"github.com/you06/releaser/pkg/types"
@@ -14,15 +15,16 @@ import (
 
 // Manager struct
 type Manager struct {
-	Config         *config.Config
-	Opt            *Option
-	User           *github.User
-	Repos          []types.Repo
-	RelaseNoteRepo types.Repo
-	Github         *github.Client
-	Slack          *slack.Client
-	NoteCollector  *note.Collector
-	PullCollector  *pull.Collector
+	Config              *config.Config
+	Opt                 *Option
+	User                *github.User
+	Repos               []types.Repo
+	RelaseNoteRepo      types.Repo
+	Github              *github.Client
+	Slack               *slack.Client
+	NoteCollector       *note.Collector
+	PullCollector       *pull.Collector
+	DependencyCollector *dependency.Dependency
 }
 
 // Option for usage
@@ -44,6 +46,10 @@ func New(cfg *config.Config, opt *Option) (*Manager, error) {
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	user, err := getGithubUser(githubClient)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
 
 	m := Manager{
 		Config:         cfg,
@@ -51,15 +57,17 @@ func New(cfg *config.Config, opt *Option) (*Manager, error) {
 		Repos:          repos,
 		RelaseNoteRepo: relaseNoteRepo,
 		Github:         githubClient,
+		User:           user,
 		Slack:          initSlackClient(cfg.SlackToken),
 		NoteCollector:  note.New(githubClient, cfg, relaseNoteRepo),
 		PullCollector:  pull.New(githubClient, cfg),
+		DependencyCollector: dependency.New(&dependency.Config{
+			Config: cfg,
+			Github: githubClient,
+			User:   user,
+		}),
 	}
-	user, err := m.getGithubUser()
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	m.User = user
+
 	if _, err := m.GetReleaseNoteRepos(); err != nil {
 		return nil, errors.Trace(err)
 	}

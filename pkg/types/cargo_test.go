@@ -30,4 +30,9 @@ batch-system = { path = "components/batch-system", default-features = false }`
 	assert.Equal(t, cargo.Dependencies["async-stream"].(string), "0.2", "assert string type")
 	assert.Equal(t, cargo.Dependencies["batch-system"].(map[string]interface{})["path"].(string), "components/batch-system", "assert map type, string field")
 	assert.Equal(t, cargo.Dependencies["batch-system"].(map[string]interface{})["default-features"].(bool), false, "assert map type, false field")
+
+	pkg := cargo.ToPackage()
+	assert.Equal(t, len(pkg.Dependencies), 1, "pkg count")
+	assert.Equal(t, pkg.Dependencies[0].Name, "async-stream", "pkg name")
+	assert.Equal(t, pkg.Dependencies[0].Version, "0.2", "pkg version")
 }
