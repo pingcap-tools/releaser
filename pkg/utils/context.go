@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const timeout = 5 * time.Second
+const timeout = 10 * time.Second
 
 // NewTimeoutContext create context with timeout
 func NewTimeoutContext() (context.Context, context.CancelFunc) {

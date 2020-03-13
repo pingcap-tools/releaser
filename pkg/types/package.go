@@ -4,6 +4,8 @@ package types
 type Package struct {
 	Name         string
 	Repo         Repo
+	Type         string
+	URL          string
 	Dependencies []Dependency
 }
 

@@ -14,6 +14,11 @@ import (
 	"github.com/you06/releaser/pkg/utils"
 )
 
+const (
+	cargo = "Cargo.toml"
+	gomod = "go.mod"
+)
+
 var dependencyFiles = []string{"go.mod", "Cargo.toml"}
 
 var (
@@ -51,20 +56,22 @@ func New(cfg *Config) *Dependency {
 func (d *Dependency) GetDependencies(repo types.Repo, version string) ([]*types.Package, error) {
 	var packages []*types.Package
 
-	sha, err := d.GetVersionSHA(repo, version)
+	ref := version
+	contents, err := d.ListContents(repo, version)
 	if err != nil {
-		// TODO: specify the error information
-		sha, err = d.GetVersionRef(repo, version)
+		if strings.Contains(err.Error(), "No commit found") {
+			ref, err = d.GetVersionRef(repo, version)
+			if err != nil {
+				return packages, errors.Trace(err)
+			}
+			contents, err = d.ListContents(repo, ref)
+			if err != nil {
+				return packages, errors.Trace(err)
+			}
+		} else {
+			return packages, errors.Trace(err)
+		}
 	}
-	if err != nil {
-		return packages, errors.Trace(err)
-	}
-
-	contents, err := d.ListContents(repo, sha)
-	if err != nil {
-		return packages, errors.Trace(err)
-	}
-	sha = strings.Split(sha, "\n")[0]
 
 	for _, c := range contents {
 		if c.GetType() != "file" {
@@ -80,7 +87,7 @@ func (d *Dependency) GetDependencies(repo types.Repo, version string) ([]*types.
 			}
 		}
 		if match {
-			content, err := d.GetContent(repo, sha, filename)
+			content, err := d.GetContent(repo, ref, filename)
 			if err != nil {
 				return packages, errors.Trace(err)
 			}
@@ -92,6 +99,7 @@ func (d *Dependency) GetDependencies(repo types.Repo, version string) ([]*types.
 			if err != nil {
 				return packages, errors.Trace(err)
 			}
+			p.URL = content.GetHTMLURL()
 			packages = append(packages, p)
 		}
 	}
@@ -123,9 +131,26 @@ func (d *Dependency) GetVersionSHA(repo types.Repo, version string) (string, err
 func (d *Dependency) GetVersionRef(repo types.Repo, version string) (string, error) {
 	version = strings.TrimLeft(version, "v")
 	ctx, _ := utils.NewTimeoutContext()
-	refs, _, err := d.Github.Git.GetRefs(ctx, repo.Owner, repo.Repo, "")
-	if err != nil {
-		return "", errors.Trace(err)
+
+	var (
+		refs    []*github.Reference
+		batch   []*github.Reference
+		page    = 0
+		perpage = 100
+	)
+
+	for page == 0 || len(batch) == perpage {
+		page++
+		batch, _, err := d.Github.Git.ListRefs(ctx, repo.Owner, repo.Repo, &github.ReferenceListOptions{
+			ListOptions: github.ListOptions{
+				Page:    page,
+				PerPage: perpage,
+			},
+		})
+		if err != nil {
+			return "", errors.Trace(err)
+		}
+		refs = append(refs, batch...)
 	}
 
 	if sha, match := matchRef(refs, version); match {
@@ -153,7 +178,7 @@ func (d *Dependency) ListContents(repo types.Repo, sha string) ([]*github.Reposi
 	ctx, _ := utils.NewTimeoutContext()
 	// TODO: what will happen if there are more than 100 files?
 	_, contents, _, err := d.Github.Repositories.GetContents(ctx,
-		repo.Owner, repo.Repo, "/", &github.RepositoryContentGetOptions{
+		repo.Owner, repo.Repo, "", &github.RepositoryContentGetOptions{
 			Ref: sha,
 		})
 	if err != nil {
@@ -178,14 +203,16 @@ func (d *Dependency) GetContent(repo types.Repo, sha, filename string) (*github.
 func parsePackage(repo types.Repo, filename, fileContent string) (*types.Package, error) {
 	var p *types.Package
 	switch filename {
-	case "Cargo.toml":
+	case cargo:
 		c := types.NewCargo()
 		if err := c.Parse(fileContent); err != nil {
 			return nil, errors.Trace(err)
 		}
 		p = c.ToPackage()
-	case "go.mod":
+		p.Type = cargo
+	case gomod:
 		p = parseGoMod(fileContent)
+		p.Type = gomod
 	}
 
 	if p != nil {
