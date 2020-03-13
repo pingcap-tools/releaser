@@ -1,8 +1,12 @@
+# You can generate your token from https://github.com/settings/tokens
+# KEEP IT SECRET!
 github-token = ""
-slack-token = ""
-slack-channel = ""
+# Managed repositories
 repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd"]
+# Release note repo
 release-note-repo = "pingcap/release-note"
+# Release note example, {repo} will be replaced by repo name
+# eg. https://github.com/you06/release-note-poc
 release-note-path = "/{repo}"
+# Default release note language pull request
 pull-language = "en"
-git-dir = "/tmp"
