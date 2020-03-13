@@ -39,7 +39,7 @@ pull-language = "en"
 - `-config` specify config file.
 - `-version` milestone name
 
-```bash
+```text
 ./releaser pr-list -config config.toml -version v3.0.9
 +------------+------+--------------+--------------------------------+
 |    REPO    |  PR  |    AUTHOR    |             TITLE              |
@@ -81,7 +81,7 @@ Arguments:
 - `-config` specify config file.
 - `-version` milestone name
 
-```bash
+```text
 ./releaser release-notes -config ./config.toml -version v4.0.0-beta.1
 +--------------+-------+-------------+--------------------------------+--------------+----+----+
 |     REPO     |  PR   |   AUTHOR    |             TITLE              | RELEASE NOTE | CN | EN |
@@ -121,7 +121,7 @@ Arguments:
 - `-version` can be a tag name or branch name
 
 ```text
-./releaser check-module -config config.toml -version v3.0.9                                                                                                                        coder@tongmu-vscode-remote
+./releaser check-module -config config.toml -version v3.0.9
 pingcap/tidb go.mod: https://github.com/pingcap/tidb/blob/v3.0.9/go.mod
 tikv/tikv Cargo.toml: https://github.com/tikv/tikv/blob/v3.0.9/Cargo.toml
 pingcap/pd go.mod: https://github.com/pingcap/pd/blob/v3.0.9/go.mod
