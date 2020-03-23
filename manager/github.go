@@ -3,7 +3,7 @@ package manager
 import (
 	"context"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/you06/releaser/pkg/utils"
 	"golang.org/x/oauth2"

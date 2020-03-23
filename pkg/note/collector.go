@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/you06/releaser/config"
 	"github.com/you06/releaser/pkg/parser"
@@ -16,6 +16,8 @@ import (
 
 var langs = []string{"cn", "en", "jp"}
 var (
+	commentPattern  = regexp.MustCompile(`<!--[^>]*-->`)
+	repoPattern     = regexp.MustCompile(`^## (.*)$`)
 	releaseNoteLine = regexp.MustCompile(`^- ?(.*?)([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)#([0-9]+).*$`)
 )
 
@@ -32,14 +34,17 @@ func New(g *github.Client, config *config.Config, relaseNoteRepo types.Repo) *Co
 }
 
 // ListReleaseNote lists release notes
-func (c *Collector) ListReleaseNote(repo types.Repo, version string) ([]parser.ReleaseNoteLang, error) {
+func (c *Collector) ListReleaseNote(product types.Product, version string) ([]parser.ReleaseNoteLang, error) {
 	var (
-		filePath = strings.ReplaceAll(c.Config.ReleaseNotePath, "{repo}", repo.Repo)
+		filePath = strings.ReplaceAll(c.Config.ReleaseNotePath, "{product}", product.Name)
 		notes    []parser.ReleaseNoteLang
 	)
 	version = strings.ToLower(strings.Trim(version, "v"))
-	contents, err := c.ListContents(repo, filePath, version)
+	contents, err := c.ListContents(filePath, version)
 	if err != nil {
+		if strings.Contains(err.Error(), "404 Not Found") {
+			return notes, nil
+		}
 		return notes, errors.Trace(err)
 	}
 	for _, content := range contents {
@@ -54,21 +59,22 @@ func (c *Collector) ListReleaseNote(repo types.Repo, version string) ([]parser.R
 		if !match {
 			continue
 		}
-		releaseNotes, err := c.ParseContent(repo, fullPath)
+		releaseNotes, err := c.ParseContent(fullPath)
 		if err != nil {
 			return notes, errors.Trace(err)
 		}
 		notes = append(notes, parser.ReleaseNoteLang{
-			Lang:  lang,
-			Path:  fullPath,
-			Notes: releaseNotes,
+			Lang:      lang,
+			Path:      fullPath,
+			Version:   version,
+			RepoNotes: releaseNotes,
 		})
 	}
 	return notes, nil
 }
 
 // ListContents list contents in a path
-func (c *Collector) ListContents(repo types.Repo, filePath, version string) ([]*github.RepositoryContent, error) {
+func (c *Collector) ListContents(filePath, version string) ([]*github.RepositoryContent, error) {
 	// FIXME: should use full name of the repo
 	ctx, _ := utils.NewTimeoutContext()
 	// TODO: what will happen if there are more than 100 files?
@@ -81,23 +87,45 @@ func (c *Collector) ListContents(repo types.Repo, filePath, version string) ([]*
 }
 
 // ParseContent parses content and get all release notes
-func (c *Collector) ParseContent(repo types.Repo, fullPath string) ([]parser.ReleaseNote, error) {
-	var notes []parser.ReleaseNote
-	content, err := c.GetFileContent(repo, fullPath)
+func (c *Collector) ParseContent(fullPath string) ([]parser.RepoReleaseNotes, error) {
+	var (
+		repos      []parser.RepoReleaseNotes
+		reposNotes *parser.RepoReleaseNotes
+	)
+	content, err := c.GetFileContent(fullPath)
 	if err != nil {
-		return notes, errors.Trace(err)
+		return repos, errors.Trace(err)
 	}
-	for _, line := range strings.Split(strings.ReplaceAll(content, "\r", ""), "\n") {
-		match := releaseNoteLine.FindStringSubmatch(strings.Trim(line, " "))
+
+	content = commentPattern.ReplaceAllString(content, "")
+	content = strings.ReplaceAll(content, "\r", "")
+
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.Trim(line, " ")
+
+		repoMatch := repoPattern.FindStringSubmatch(line)
+		if len(repoMatch) == 2 {
+			// push old repo into repos
+			if reposNotes.Repo.Repo != "" {
+				repos = append(repos, *reposNotes)
+			}
+			// compose new repo
+			reposNotes = &parser.RepoReleaseNotes{
+				Repo: types.Repo{Repo: repoMatch[1]},
+			}
+			continue
+		}
+
+		match := releaseNoteLine.FindStringSubmatch(line)
 		if len(match) != 5 {
 			continue
 		}
 		note, owner, repo, numberStr := match[1], match[2], match[3], match[4]
 		number, err := strconv.Atoi(numberStr)
 		if err != nil {
-			return notes, errors.Trace(err)
+			return repos, errors.Trace(err)
 		}
-		notes = append(notes, parser.ReleaseNote{
+		reposNotes.Notes = append(reposNotes.Notes, parser.ReleaseNote{
 			Repo: types.Repo{
 				Owner: owner,
 				Repo:  repo,
@@ -106,11 +134,11 @@ func (c *Collector) ParseContent(repo types.Repo, fullPath string) ([]parser.Rel
 			Note:       note,
 		})
 	}
-	return notes, nil
+	return repos, nil
 }
 
 // GetFileContent gets content of file and decode it to string
-func (c *Collector) GetFileContent(repo types.Repo, p string) (string, error) {
+func (c *Collector) GetFileContent(p string) (string, error) {
 	ctx, _ := utils.NewTimeoutContext()
 	content, _, _, err := c.github.Repositories.GetContents(ctx,
 		c.relaseNoteRepo.Owner, c.relaseNoteRepo.Repo, p, &github.RepositoryContentGetOptions{})

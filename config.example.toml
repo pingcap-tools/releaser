@@ -7,6 +7,10 @@ repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd"]
 release-note-repo = "pingcap/release-note"
 # Release note example, {repo} will be replaced by repo name
 # eg. https://github.com/you06/release-note-poc
-release-note-path = "/{repo}"
+release-note-path = "/{product}"
 # Default release note language pull request
 pull-language = "en"
+
+[[product]]
+name = "tidb"
+repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd"]

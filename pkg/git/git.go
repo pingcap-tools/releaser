@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/you06/releaser/config"
 	"github.com/you06/releaser/pkg/types"
@@ -51,6 +51,7 @@ func New(cfg *config.Config, gitCfg *Config) *Git {
 func (g *Git) Clone() error {
 	baseHTTPSaddr := g.BaseRepo.ComposeHTTPSWithCredential(g.User.GetLogin(), g.GithubToken)
 	dir := path.Join(g.BaseDir, g.Dir)
+	fmt.Println(dir)
 	_, err := do(g.BaseDir, "git", "clone", baseHTTPSaddr, dir)
 	return errors.Trace(err)
 }
@@ -82,6 +83,7 @@ func (g *Git) ReadFileContent(relative string) (string, error) {
 // WriteFileContent read file by a relative path
 func (g *Git) WriteFileContent(relative, content string) error {
 	realpath := path.Join(g.BaseDir, g.Dir, relative)
+	do(path.Join(g.BaseDir, g.Dir), "mkdir", "-p", path.Dir(realpath))
 	return errors.Trace(ioutil.WriteFile(realpath, []byte(content), 0644))
 }
 

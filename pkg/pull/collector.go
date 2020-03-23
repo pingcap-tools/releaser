@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/you06/releaser/config"
 	"github.com/you06/releaser/pkg/types"
@@ -149,6 +149,10 @@ func (c *Collector) ListAllIssuesFrom(repo types.Repo, milestone *github.Milesto
 		batch, _, err := c.github.Issues.ListByRepo(ctx, repo.Owner, repo.Repo, &github.IssueListByRepoOptions{
 			Milestone: fmt.Sprintf("%d", milestone.GetNumber()),
 			State:     "all",
+			ListOptions: github.ListOptions{
+				Page:    page,
+				PerPage: perpage,
+			},
 		})
 		if err != nil {
 			return all, errors.Trace(err)
@@ -169,7 +173,7 @@ func issue2pull(issue *github.Issue) *github.PullRequest {
 
 	var labels []*github.Label
 	for _, label := range issue.Labels {
-		labels = append(labels, &label)
+		labels = append(labels, label)
 	}
 
 	pull := github.PullRequest{

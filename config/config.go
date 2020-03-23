@@ -11,14 +11,21 @@ import (
 
 // Config is cherry picker config struct
 type Config struct {
-	GithubToken     string   `toml:"github-token"`
-	SlackToken      string   `toml:"slack-token"`
-	SlackChannel    string   `toml:"slack-channel"`
-	Repos           []string `toml:"repos"`
-	ReleaseNoteRepo string   `toml:"release-note-repo"`
-	ReleaseNotePath string   `toml:"release-note-path"`
-	PullLanguage    string   `toml:"pull-language"`
-	GitDir          string   `toml:"git-dir"`
+	GithubToken     string    `toml:"github-token"`
+	SlackToken      string    `toml:"slack-token"`
+	SlackChannel    string    `toml:"slack-channel"`
+	Repos           []string  `toml:"repos"`
+	ReleaseNoteRepo string    `toml:"release-note-repo"`
+	ReleaseNotePath string    `toml:"release-note-path"`
+	PullLanguage    string    `toml:"pull-language"`
+	GitDir          string    `toml:"git-dir"`
+	Products        []Product `toml:"product"`
+}
+
+// Product can contain multi repos
+type Product struct {
+	Name  string   `toml:"name"`
+	Repos []string `toml:"repos"`
 }
 
 // New inits config by default

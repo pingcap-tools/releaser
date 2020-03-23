@@ -3,7 +3,7 @@ package manager
 import (
 	"strings"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/nlopes/slack"
 	"github.com/you06/releaser/config"
@@ -15,10 +15,12 @@ import (
 
 // Manager struct
 type Manager struct {
-	Config              *config.Config
-	Opt                 *Option
-	User                *github.User
-	Repos               []types.Repo
+	Config   *config.Config
+	Opt      *Option
+	User     *github.User
+	Repos    []types.Repo
+	Products []types.Product
+
 	RelaseNoteRepo      types.Repo
 	Github              *github.Client
 	Slack               *slack.Client
@@ -35,6 +37,10 @@ type Option struct {
 // New create releaser manager
 func New(cfg *config.Config, opt *Option) (*Manager, error) {
 	repos, err := parseRepos(cfg.Repos)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	products, err := parseProducts(cfg.Products)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -55,6 +61,7 @@ func New(cfg *config.Config, opt *Option) (*Manager, error) {
 		Config:         cfg,
 		Opt:            opt,
 		Repos:          repos,
+		Products:       products,
 		RelaseNoteRepo: relaseNoteRepo,
 		Github:         githubClient,
 		User:           user,
@@ -89,6 +96,20 @@ func (m *Manager) Run(subCommand string) error {
 	default:
 		return errors.New("invalid sub command")
 	}
+}
+
+func parseProducts(products []config.Product) ([]types.Product, error) {
+	var p []types.Product
+
+	for _, product := range products {
+		repos, err := parseRepos(product.Repos)
+		if err != nil {
+			return p, errors.Trace(err)
+		}
+		p = append(p, types.Product{Name: product.Name, Repos: repos})
+	}
+
+	return p, nil
 }
 
 func parseRepos(repoStrs []string) ([]types.Repo, error) {

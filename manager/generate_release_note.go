@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
 	"github.com/you06/releaser/pkg/git"
@@ -21,8 +21,8 @@ func (m *Manager) runGenerateReleaseNote() error {
 	}
 	var errs []error
 
-	for _, repo := range m.Repos {
-		errs = append(errs, m.generateReleaseNoteRepo(repo))
+	for _, project := range m.Products {
+		errs = append(errs, m.generateReleaseNoteProduct(project))
 	}
 
 	for _, err := range errs {
@@ -33,23 +33,37 @@ func (m *Manager) runGenerateReleaseNote() error {
 	return nil
 }
 
-func (m *Manager) generateReleaseNoteRepo(repo types.Repo) error {
-	var errs []error
+func (m *Manager) generateReleaseNoteProduct(product types.Product) error {
+	// Do not process empty product
+	if len(product.Repos) == 0 {
+		return nil
+	}
+
+	var (
+		errs       []error
+		milestones []*github.Milestone
+	)
+
+	// get target milestones
 	if m.Opt.Version == "all" {
-		milestones, err := m.PullCollector.ListAllOpenedMilestones(repo)
+		// get milestones by first product
+		var err error
+		milestones, err = m.PullCollector.ListAllOpenedMilestones(product.Repos[0])
 		if err != nil {
 			return errors.Trace(err)
-		}
-		for _, milestone := range milestones {
-			errs = append(errs, m.generateReleaseNoteRepoMilestone(repo, milestone))
 		}
 	} else {
-		milestone, err := m.PullCollector.GetVersionMilestone(repo, m.Opt.Version)
+		milestone, err := m.PullCollector.GetVersionMilestone(product.Repos[0], m.Opt.Version)
 		if err != nil {
 			return errors.Trace(err)
 		}
-		errs = append(errs, m.generateReleaseNoteRepoMilestone(repo, milestone))
+		milestones = append(milestones, milestone)
 	}
+
+	for _, milestone := range milestones {
+		errs = append(errs, m.generateReleaseNoteProductMilestone(product, milestone))
+	}
+
 	for _, err := range errs {
 		if err != nil {
 			return errors.Trace(err)
@@ -58,22 +72,10 @@ func (m *Manager) generateReleaseNoteRepo(repo types.Repo) error {
 	return nil
 }
 
-func (m *Manager) generateReleaseNoteRepoMilestone(repo types.Repo, milestone *github.Milestone) error {
-	gitClient := git.New(m.Config, &git.Config{
-		Github: m.Github,
-		User:   m.User,
-		Base:   m.RelaseNoteRepo,
-		Head:   types.Repo{Owner: m.User.GetLogin(), Repo: m.RelaseNoteRepo.Repo},
-		Dir:    fmt.Sprintf("%s-%s", repo.Repo, milestone.GetTitle()),
-	})
-	// get release notes in PR
-	_, pulls, err := m.PullCollector.ListAllMilestoneIssues(repo, milestone)
+func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, milestone *github.Milestone) error {
+	releaseNotes, err := m.NoteCollector.ListReleaseNote(product, milestone.GetTitle())
 	if err != nil {
-		return errors.Trace(err)
-	}
-	releaseNotes, err := m.NoteCollector.ListReleaseNote(repo, milestone.GetTitle())
-	if err != nil {
-		fmt.Printf("get release notes error %+v\n", err)
+		return errors.Errorf("get release notes error %+v\n", err)
 	}
 	var defaultLangReleaseNote *parser.ReleaseNoteLang
 	for _, releaseNote := range releaseNotes {
@@ -82,7 +84,7 @@ func (m *Manager) generateReleaseNoteRepoMilestone(repo types.Repo, milestone *g
 		}
 	}
 	if defaultLangReleaseNote == nil {
-		dir := strings.ReplaceAll(m.Config.ReleaseNotePath, "{repo}", repo.Repo)
+		dir := strings.ReplaceAll(m.Config.ReleaseNotePath, "{product}", product.Name)
 		defaultLangReleaseNote = &parser.ReleaseNoteLang{
 			Lang:    m.Config.PullLanguage,
 			Path:    path.Join(dir, fmt.Sprintf("%s.md", milestone.GetTitle())),
@@ -90,37 +92,29 @@ func (m *Manager) generateReleaseNoteRepoMilestone(repo types.Repo, milestone *g
 		}
 	}
 
-	for _, pull := range pulls {
-		note, has := hasReleaseNote(pull.GetBody())
-		if has {
-			inRepo := false
-			for _, releaseNote := range defaultLangReleaseNote.Notes {
-				if releaseNote.PullNumber == pull.GetNumber() {
-					inRepo = true
-					releaseNote.Note = note
-				}
-			}
-			if !inRepo {
-				defaultLangReleaseNote.Notes = append(defaultLangReleaseNote.Notes, parser.ReleaseNote{
-					Repo:       repo,
-					PullNumber: pull.GetNumber(),
-					Note:       note,
-				})
-			}
+	for _, repo := range product.Repos {
+		if err := m.makeReleaseNoteRepoMilestone(repo, milestone, defaultLangReleaseNote); err != nil {
+			return errors.Trace(err)
 		}
 	}
 
+	gitClient := git.New(m.Config, &git.Config{
+		Github: m.Github,
+		User:   m.User,
+		Base:   m.RelaseNoteRepo,
+		Head:   types.Repo{Owner: m.User.GetLogin(), Repo: m.RelaseNoteRepo.Repo},
+		Dir:    fmt.Sprintf("%s-%s", product.Name, milestone.GetTitle()),
+	})
 	if err := gitClient.Clone(); err != nil {
 		return errors.Trace(err)
 	}
+	// defer func() {
+	// 	if err := gitClient.Clear(); err != nil {
+	// 		log.Error(err)
+	// 	}
+	// }()
 
-	defer func() {
-		if err := gitClient.Clear(); err != nil {
-			log.Error(err)
-		}
-	}()
-
-	branch := fmt.Sprintf("%s-%s-%s", repo.Owner, repo.Repo, milestone.GetTitle())
+	branch := fmt.Sprintf("%s-%s", product.Name, milestone.GetTitle())
 	if err := gitClient.Checkout(branch); err != nil {
 		if err := gitClient.CheckoutNew(branch); err != nil {
 			return errors.Trace(err)
@@ -138,14 +132,69 @@ func (m *Manager) generateReleaseNoteRepoMilestone(repo types.Repo, milestone *g
 		return errors.Trace(err)
 	}
 
-	if err := gitClient.Push(branch); err != nil {
+	// if err := gitClient.Push(branch); err != nil {
+	// 	return errors.Trace(err)
+	// }
+
+	// title := fmt.Sprintf("update %s %s release notes", product.Name, milestone.GetTitle())
+	// if _, err := gitClient.CreatePull(title, branch); err != nil {
+	// 	return errors.Trace(err)
+	// }
+
+	return nil
+}
+
+func (m *Manager) makeReleaseNoteRepoMilestone(repo types.Repo, milestone *github.Milestone, releaseNote *parser.ReleaseNoteLang) error {
+	if releaseNote == nil {
+		return errors.New("releaseNote cannot be nil")
+	}
+
+	milestone, err := m.PullCollector.GetVersionMilestone(repo, m.Opt.Version)
+	if err != nil {
+		fmt.Printf("Find milestone in %s failed", repo)
+		return nil
+	}
+
+	// get release notes in PR
+	_, pulls, err := m.PullCollector.ListAllMilestoneIssues(repo, milestone)
+	if err != nil {
 		return errors.Trace(err)
 	}
 
-	title := fmt.Sprintf("update %s release notes", milestone.GetTitle())
-	if _, err := gitClient.CreatePull(title, branch); err != nil {
-		return errors.Trace(err)
+	var repoReleaseNote *parser.RepoReleaseNotes
+	for i := range releaseNote.RepoNotes {
+		if releaseNote.RepoNotes[i].Repo.Repo == repo.Repo {
+			repoReleaseNote = &releaseNote.RepoNotes[i]
+		}
 	}
+	if repoReleaseNote == nil {
+		releaseNote.RepoNotes = append(releaseNote.RepoNotes, parser.RepoReleaseNotes{
+			Repo: repo,
+		})
+		repoReleaseNote = &releaseNote.RepoNotes[len(releaseNote.RepoNotes)-1]
+	}
+
+	for _, pull := range pulls {
+		note, has := hasReleaseNote(pull.GetBody())
+		if has {
+			inRepo := false
+			for _, releaseNote := range repoReleaseNote.Notes {
+				if releaseNote.PullNumber == pull.GetNumber() {
+					inRepo = true
+					// update note
+					releaseNote.Note = note
+				}
+			}
+			if !inRepo {
+				repoReleaseNote.Notes = append(repoReleaseNote.Notes, parser.ReleaseNote{
+					Repo:       repo,
+					PullNumber: pull.GetNumber(),
+					Note:       note,
+				})
+			}
+		}
+	}
+
 	return nil
 }
 

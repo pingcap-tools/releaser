@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/go-github/v29/github"
+	"github.com/google/go-github/v30/github"
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
 	"github.com/you06/releaser/config"
