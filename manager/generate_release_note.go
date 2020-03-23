@@ -108,11 +108,11 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 	if err := gitClient.Clone(); err != nil {
 		return errors.Trace(err)
 	}
-	// defer func() {
-	// 	if err := gitClient.Clear(); err != nil {
-	// 		log.Error(err)
-	// 	}
-	// }()
+	defer func() {
+		if err := gitClient.Clear(); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	branch := fmt.Sprintf("%s-%s", product.Name, milestone.GetTitle())
 	if err := gitClient.Checkout(branch); err != nil {
@@ -132,14 +132,14 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 		return errors.Trace(err)
 	}
 
-	// if err := gitClient.Push(branch); err != nil {
-	// 	return errors.Trace(err)
-	// }
+	if err := gitClient.Push(branch); err != nil {
+		return errors.Trace(err)
+	}
 
-	// title := fmt.Sprintf("update %s %s release notes", product.Name, milestone.GetTitle())
-	// if _, err := gitClient.CreatePull(title, branch); err != nil {
-	// 	return errors.Trace(err)
-	// }
+	title := fmt.Sprintf("update %s %s release notes", product.Name, milestone.GetTitle())
+	if _, err := gitClient.CreatePull(title, branch); err != nil {
+		return errors.Trace(err)
+	}
 
 	return nil
 }
