@@ -60,9 +60,16 @@ func ParseContent(content string) ([]ReleaseNote, error) {
 	return notes, nil
 }
 
+// RemoveAllNote remote all notes
+func (r *ReleaseNoteLang) RemoveAllNote() {
+	for k := range r.RepoNotes {
+		r.RepoNotes[k].Notes = nil
+	}
+}
+
 // String ...
 func (r ReleaseNote) String() string {
-	return fmt.Sprintf("%s %s#%d", r.Note, r.Repo.String(), r.PullNumber)
+	return fmt.Sprintf("%s [#%d](https://github.com/%s/pull/%d)", r.Note, r.PullNumber, r.Repo.String(), r.PullNumber)
 }
 
 // String ...

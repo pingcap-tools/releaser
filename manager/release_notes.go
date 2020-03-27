@@ -169,7 +169,7 @@ func hasReleaseNote(body string) (string, bool) {
 
 func removeHeader(line string) string {
 	origin := line
-	line = strings.TrimLeft(line, " ")
+	line = strings.Trim(line, " ")
 	line = strings.TrimLeft(line, "*")
 	line = strings.TrimLeft(line, "-")
 	if line == origin {

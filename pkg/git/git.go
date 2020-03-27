@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
@@ -80,11 +81,24 @@ func (g *Git) ReadFileContent(relative string) (string, error) {
 	return string(dat), nil
 }
 
-// WriteFileContent read file by a relative path
+// WriteFileContent write file by a relative path
 func (g *Git) WriteFileContent(relative, content string) error {
 	realpath := path.Join(g.BaseDir, g.Dir, relative)
 	do(path.Join(g.BaseDir, g.Dir), "mkdir", "-p", path.Dir(realpath))
 	return errors.Trace(ioutil.WriteFile(realpath, []byte(content), 0644))
+}
+
+// WriteIfNotExist write file if not exist by a relative path
+func (g *Git) WriteIfNotExist(relative, content string) error {
+	realpath := path.Join(g.BaseDir, g.Dir, relative)
+	info, err := os.Stat(realpath)
+	if os.IsNotExist(err) {
+		return errors.Trace(g.WriteFileContent(relative, content))
+	}
+	if info.IsDir() {
+		return errors.Errorf("%s is a dir", relative)
+	}
+	return nil
 }
 
 // Commit do git add & git commit with sign up
@@ -142,6 +156,9 @@ func (g *Git) CreatePull(title, branch string) (*github.PullRequest, error) {
 	ctx, _ := utils.NewTimeoutContext()
 	pull, _, err := g.Github.PullRequests.Create(ctx,
 		g.BaseRepo.Owner, g.BaseRepo.Repo, &newPull)
+	if strings.Contains(err.Error(), "A pull request already exists") {
+		return nil, nil
+	}
 	return pull, errors.Trace(err)
 }
 

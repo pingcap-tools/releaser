@@ -81,8 +81,12 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 	for _, releaseNote := range releaseNotes {
 		if releaseNote.Lang == m.Config.PullLanguage {
 			defaultLangReleaseNote = &releaseNote
+			// break because the meomory address will be replaced by next item
+			// the pointer will indicate to the wrong item
+			break
 		}
 	}
+
 	if defaultLangReleaseNote == nil {
 		dir := strings.ReplaceAll(m.Config.ReleaseNotePath, "{product}", product.Name)
 		defaultLangReleaseNote = &parser.ReleaseNoteLang{
@@ -121,7 +125,6 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 		}
 	}
 
-	log.Info(defaultLangReleaseNote.Path)
 	if err := gitClient.WriteFileContent(defaultLangReleaseNote.Path,
 		defaultLangReleaseNote.String()); err != nil {
 		return errors.Trace(err)

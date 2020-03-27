@@ -39,7 +39,7 @@ func (c *Collector) ListReleaseNote(product types.Product, version string) ([]pa
 		filePath = strings.ReplaceAll(c.Config.ReleaseNotePath, "{product}", product.Name)
 		notes    []parser.ReleaseNoteLang
 	)
-	version = strings.ToLower(strings.Trim(version, "v"))
+	trimVersion := strings.ToLower(strings.Trim(version, "v"))
 	contents, err := c.ListContents(filePath, version)
 	if err != nil {
 		if strings.Contains(err.Error(), "404 Not Found") {
@@ -55,7 +55,7 @@ func (c *Collector) ListReleaseNote(product types.Product, version string) ([]pa
 		if content.GetType() != "file" {
 			continue
 		}
-		lang, match := matchLang(name, version)
+		lang, match := matchLang(name, trimVersion)
 		if !match {
 			continue
 		}
@@ -106,7 +106,7 @@ func (c *Collector) ParseContent(fullPath string) ([]parser.RepoReleaseNotes, er
 		repoMatch := repoPattern.FindStringSubmatch(line)
 		if len(repoMatch) == 2 {
 			// push old repo into repos
-			if reposNotes.Repo.Repo != "" {
+			if reposNotes != nil && reposNotes.Repo.Repo != "" {
 				repos = append(repos, *reposNotes)
 			}
 			// compose new repo
