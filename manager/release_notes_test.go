@@ -6,12 +6,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHasReleaseNote(t *testing.T) {
-	noReleaseNoteSample1 := `Bug Fix
-Release note
-- NA`
+type hasReleaseNoteRes struct {
+	note string
+	has  bool
+}
 
-	note1, has1 := hasReleaseNote(noReleaseNoteSample1)
-	assert.Equal(t, note1, "", "case 1")
-	assert.Equal(t, has1, false, "case 1")
+func testHasReleaseNote(raw string) hasReleaseNoteRes {
+	note, has := hasReleaseNote(raw)
+	return hasReleaseNoteRes{note, has}
+}
+
+func TestHasReleaseNote(t *testing.T) {
+	assert.Equal(t, testHasReleaseNote("Bug Fix \nRelease note\n- NA"), hasReleaseNoteRes{"", false}, "case 1")
+	assert.Equal(t, testHasReleaseNote("Bug Fix \nRelease note\n- N/A"), hasReleaseNoteRes{"", false}, "case 1")
+	assert.Equal(t, testHasReleaseNote("Bug Fix \nRelease note\n- (N/A)"), hasReleaseNoteRes{"", false}, "case 1")
 }

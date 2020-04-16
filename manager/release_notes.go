@@ -16,7 +16,7 @@ var (
 	commentPattern       = regexp.MustCompile(`<!--[^>]*-->`)
 	releaseNoteStart     = regexp.MustCompile(`^.*release ?note.*$`)
 	releaseNoteListMatch = regexp.MustCompile(`^- ?(.*)$`)
-	releaseNoteNAMatch   = regexp.MustCompile(`^\s*(na\.?|no need\.?|none\.?|no\.?|no. it's trivial.)\s*$`)
+	releaseNoteNAMatch   = regexp.MustCompile(`^\s*\(?(na\.?|no need\.?|none\.?|no\.?|no. it's trivial.|n\/a)\)?\s*$`)
 	titlePattern         = regexp.MustCompile(`^\#{1,3}\ .*$`)
 )
 

@@ -156,7 +156,8 @@ func (g *Git) CreatePull(title, branch string) (*github.PullRequest, error) {
 	ctx, _ := utils.NewTimeoutContext()
 	pull, _, err := g.Github.PullRequests.Create(ctx,
 		g.BaseRepo.Owner, g.BaseRepo.Repo, &newPull)
-	if strings.Contains(err.Error(), "A pull request already exists") {
+
+	if err != nil && strings.Contains(err.Error(), "A pull request already exists") {
 		return nil, nil
 	}
 	return pull, errors.Trace(err)
