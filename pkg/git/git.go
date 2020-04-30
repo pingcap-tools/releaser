@@ -68,6 +68,9 @@ func (g *Git) Checkout(branch string) error {
 func (g *Git) CheckoutNew(branch string) error {
 	dir := path.Join(g.BaseDir, g.Dir)
 	_, err := do(dir, "git", "checkout", "-b", branch)
+	if err != nil {
+		panic(err)
+	}
 	return errors.Trace(err)
 }
 

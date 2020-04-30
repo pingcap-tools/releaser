@@ -42,6 +42,7 @@ func (c *Collector) GetVersionMilestone(repo types.Repo, version string) (*githu
 		return nil, errors.Trace(err)
 	}
 	for _, milestone := range milestones {
+		fmt.Println(strings.ToLower(milestone.GetTitle()), strings.ToLower(version))
 		if strings.Contains(strings.ToLower(milestone.GetTitle()), strings.ToLower(version)) {
 			return milestone, nil
 		}
@@ -89,7 +90,7 @@ func (c *Collector) ListAllOpenedMilestones(repo types.Repo) ([]*github.Mileston
 		page++
 		ctx, _ := utils.NewTimeoutContext()
 		batch, _, err = c.github.Issues.ListMilestones(ctx, repo.Owner, repo.Repo, &github.MilestoneListOptions{
-			State: "open",
+			State: "all",
 			ListOptions: github.ListOptions{
 				Page:    page,
 				PerPage: perpage,
