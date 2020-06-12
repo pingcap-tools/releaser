@@ -3,6 +3,7 @@ package manager
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +14,10 @@ import (
 	"github.com/you06/releaser/pkg/parser"
 	"github.com/you06/releaser/pkg/types"
 	"github.com/you06/releaser/pkg/utils"
+)
+
+var (
+	numPattern = regexp.MustCompile(`^.*?(\d+)$`)
 )
 
 func (m *Manager) runGenerateReleaseNote() error {
@@ -177,7 +182,12 @@ func (m *Manager) makeReleaseNoteRepoMilestone(repo types.Repo, milestone *githu
 		repoReleaseNote = &releaseNote.RepoNotes[len(releaseNote.RepoNotes)-1]
 	}
 
+	ref := version2ref(m.Opt.Version)
+
 	for _, pull := range pulls {
+		if pull.GetBase().GetRef() != ref {
+			continue
+		}
 		note, has := hasReleaseNote(pull.GetBody())
 		if has {
 			inRepo := false
@@ -227,4 +237,13 @@ func (m *Manager) forkRepo(repo types.Repo) error {
 
 func now() string {
 	return time.Now().Format("2006-01-02T15:04:05")
+}
+
+func version2ref(version string) string {
+	p1 := strings.Split(version, ".")[0]
+	num := numPattern.FindStringSubmatch(p1)
+	if len(num) == 2 {
+		return fmt.Sprintf("release-%s.0", num[1])
+	}
+	return ""
 }

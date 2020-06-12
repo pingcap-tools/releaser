@@ -16,7 +16,7 @@ var (
 	commentPattern       = regexp.MustCompile(`<!--[^>]*-->`)
 	releaseNoteStart     = regexp.MustCompile(`^.*release ?note.*$`)
 	releaseNoteListMatch = regexp.MustCompile(`^- ?(.*)$`)
-	releaseNoteNAMatch   = regexp.MustCompile(`^\s*\(?(na\.?|no need\.?|none\.?|no\.?|no. it's trivial.|n\/a)\)?\s*$`)
+	releaseNoteNAMatch   = regexp.MustCompile(`^\s*\(?(no release note|na\.?|no need\.?|none\.?|no\.?|no. it's trivial.|n\/a)\)?\s*$`)
 	titlePattern         = regexp.MustCompile(`^\#{1,3}\ .*$`)
 )
 
@@ -150,6 +150,7 @@ func hasReleaseNote(body string) (string, bool) {
 		}
 	}
 	for _, line := range releaseNoteLines {
+		line = removeHeader(line)
 		listMatch := releaseNoteListMatch.FindStringSubmatch(line)
 		if len(listMatch) == 2 {
 			line = listMatch[1]
@@ -161,7 +162,7 @@ func hasReleaseNote(body string) (string, bool) {
 			return "", false
 		}
 		if line != "" {
-			return removeHeader(line), true
+			return line, true
 		}
 	}
 	return "", false

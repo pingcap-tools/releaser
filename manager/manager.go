@@ -104,9 +104,13 @@ func parseProducts(products []config.Product) ([]types.Product, error) {
 	for _, product := range products {
 		repos, err := parseRepos(product.Repos)
 		if err != nil {
-			return p, errors.Trace(err)
+			return nil, errors.Trace(err)
 		}
-		p = append(p, types.Product{Name: product.Name, Repos: repos})
+		renames, err := parseRenames(product.Rename)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		p = append(p, types.Product{Name: product.Name, Repos: repos, Renames: renames})
 	}
 
 	return p, nil
@@ -126,6 +130,22 @@ func parseRepos(repoStrs []string) ([]types.Repo, error) {
 	}
 
 	return repos, nil
+}
+
+func parseRenames(renameSources map[string]string) (map[types.Repo]types.Repo, error) {
+	renameRepo := make(map[types.Repo]types.Repo)
+	for k, v := range renameSources {
+		kRepo, err := parseRepo(k)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		vRepo, err := parseRepo(v)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		renameRepo[kRepo] = vRepo
+	}
+	return renameRepo, nil
 }
 
 func parseRepo(repo string) (types.Repo, error) {

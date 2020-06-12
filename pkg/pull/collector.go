@@ -121,12 +121,12 @@ func (c *Collector) ListAllMilestoneIssues(repo types.Repo, milestone *github.Mi
 
 	for _, item := range all {
 		if item.IsPullRequest() {
-			// ctx, _ := utils.NewTimeoutContext()
-			// pull, _, err := c.github.PullRequests.Get(ctx, repo.Owner, repo.Repo, item.GetNumber())
-			// if err != nil {
-			// 	return issues, pulls, errors.Trace(err)
-			// }
-			pulls = append(pulls, issue2pull(item))
+			ctx, _ := utils.NewTimeoutContext()
+			pull, _, err := c.github.PullRequests.Get(ctx, repo.Owner, repo.Repo, item.GetNumber())
+			if err != nil {
+				return issues, pulls, errors.Trace(err)
+			}
+			pulls = append(pulls, pull)
 		} else {
 			issues = append(issues, item)
 		}
