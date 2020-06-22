@@ -13,4 +13,5 @@ pull-language = "en"
 
 [[product]]
 name = "tidb"
-repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd"]
+repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd", "pingcap/tics"]
+rename = { "pingcap/tics" = "pingcap/tiflash" }

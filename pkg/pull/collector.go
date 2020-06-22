@@ -42,7 +42,6 @@ func (c *Collector) GetVersionMilestone(repo types.Repo, version string) (*githu
 		return nil, errors.Trace(err)
 	}
 	for _, milestone := range milestones {
-		fmt.Println(strings.ToLower(milestone.GetTitle()), strings.ToLower(version))
 		if strings.Contains(strings.ToLower(milestone.GetTitle()), strings.ToLower(version)) {
 			return milestone, nil
 		}

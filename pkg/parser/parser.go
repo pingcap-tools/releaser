@@ -24,8 +24,9 @@ type ReleaseNoteLang struct {
 
 // RepoReleaseNotes defines release notes in a repo
 type RepoReleaseNotes struct {
-	Repo  types.Repo
-	Notes []ReleaseNote
+	Repo   types.Repo
+	Rename types.Repo
+	Notes  []ReleaseNote
 }
 
 // ReleaseNote is single release note
@@ -75,8 +76,12 @@ func (r ReleaseNote) String() string {
 // String ...
 func (r RepoReleaseNotes) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "## %s", r.Repo.Repo)
-	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "## %s", r.Rename.Repo)
+	if len(r.Notes) > 0 {
+		b.WriteString("\n\n")
+	} else {
+		b.WriteString("\n")
+	}
 	for _, note := range r.Notes {
 		fmt.Fprintf(&b, "- %s\n", note.String())
 	}
@@ -88,8 +93,11 @@ func (r ReleaseNoteLang) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s", r.Version)
 	b.WriteString("\n\n")
-	for _, repoNotes := range r.RepoNotes {
-		fmt.Fprintf(&b, "%s\n", repoNotes.String())
+	for index, repoNotes := range r.RepoNotes {
+		b.WriteString(repoNotes.String())
+		if index < len(r.RepoNotes)-1 {
+			b.WriteString("\n")
+		}
 	}
 	return b.String()
 }

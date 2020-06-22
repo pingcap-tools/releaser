@@ -96,13 +96,17 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 		dir := strings.ReplaceAll(m.Config.ReleaseNotePath, "{product}", product.Name)
 		defaultLangReleaseNote = &parser.ReleaseNoteLang{
 			Lang:    m.Config.PullLanguage,
-			Path:    path.Join(dir, fmt.Sprintf("%s.md", milestone.GetTitle())),
+			Path:    path.Join(dir, fmt.Sprintf("%s.md", strings.TrimLeft(m.Opt.Version, "v"))),
 			Version: milestone.GetTitle(),
 		}
 	}
 
 	for _, repo := range product.Repos {
-		if err := m.makeReleaseNoteRepoMilestone(repo, milestone, defaultLangReleaseNote); err != nil {
+		rename, ok := product.Renames[repo]
+		if !ok {
+			rename = repo
+		}
+		if err := m.makeReleaseNoteRepoMilestone(repo, rename, defaultLangReleaseNote); err != nil {
 			return errors.Trace(err)
 		}
 	}
@@ -123,7 +127,7 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 		}
 	}()
 
-	branch := fmt.Sprintf("%s-%s", product.Name, milestone.GetTitle())
+	branch := fmt.Sprintf("%s-%s", "add", strings.TrimLeft(m.Opt.Version, "v"))
 	if err := gitClient.Checkout(branch); err != nil {
 		if err := gitClient.CheckoutNew(branch); err != nil {
 			return errors.Trace(err)
@@ -152,7 +156,7 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 	return nil
 }
 
-func (m *Manager) makeReleaseNoteRepoMilestone(repo types.Repo, milestone *github.Milestone, releaseNote *parser.ReleaseNoteLang) error {
+func (m *Manager) makeReleaseNoteRepoMilestone(repo, rename types.Repo, releaseNote *parser.ReleaseNoteLang) error {
 	if releaseNote == nil {
 		return errors.New("releaseNote cannot be nil")
 	}
@@ -177,7 +181,8 @@ func (m *Manager) makeReleaseNoteRepoMilestone(repo types.Repo, milestone *githu
 	}
 	if repoReleaseNote == nil {
 		releaseNote.RepoNotes = append(releaseNote.RepoNotes, parser.RepoReleaseNotes{
-			Repo: repo,
+			Repo:   repo,
+			Rename: rename,
 		})
 		repoReleaseNote = &releaseNote.RepoNotes[len(releaseNote.RepoNotes)-1]
 	}
@@ -186,6 +191,9 @@ func (m *Manager) makeReleaseNoteRepoMilestone(repo types.Repo, milestone *githu
 
 	for _, pull := range pulls {
 		if pull.GetBase().GetRef() != ref {
+			continue
+		}
+		if !pull.GetMerged() {
 			continue
 		}
 		note, has := hasReleaseNote(pull.GetBody())
