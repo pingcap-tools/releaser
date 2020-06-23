@@ -70,7 +70,7 @@ func (r *ReleaseNoteLang) RemoveAllNote() {
 
 // String ...
 func (r ReleaseNote) String() string {
-	return fmt.Sprintf("%s [#%d](https://github.com/%s/pull/%d)", r.Note, r.PullNumber, r.Repo.String(), r.PullNumber)
+	return fmt.Sprintf("%s [#%d](https://github.com/%s/pull/%d)", Ucfirst(r.Note), r.PullNumber, r.Repo.String(), r.PullNumber)
 }
 
 // String ...
@@ -100,4 +100,15 @@ func (r ReleaseNoteLang) String() string {
 		}
 	}
 	return b.String()
+}
+
+func Ucfirst(str string) string {
+	if len(str) < 1 {
+		return ""
+	}
+	strArry := []rune(str)
+	if strArry[0] >= 97 && strArry[0] <= 122 {
+		strArry[0] -= 32
+	}
+	return string(strArry)
 }

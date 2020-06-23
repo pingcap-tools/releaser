@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/google/go-github/v30/github"
@@ -11,6 +12,10 @@ import (
 	"github.com/you06/releaser/pkg/note"
 	"github.com/you06/releaser/pkg/pull"
 	"github.com/you06/releaser/pkg/types"
+)
+
+var (
+	structurePattern = regexp.MustCompile(`(.*)?:\s?(.*)`)
 )
 
 // Manager struct
@@ -110,7 +115,16 @@ func parseProducts(products []config.Product) ([]types.Product, error) {
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
-		p = append(p, types.Product{Name: product.Name, Repos: repos, Renames: renames})
+		structure, err := parseStructure(product.Structure)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		p = append(p, types.Product{
+			Name:      product.Name,
+			Repos:     repos,
+			Renames:   renames,
+			Structure: structure,
+		})
 	}
 
 	return p, nil
@@ -160,4 +174,38 @@ func parseRepo(repo string) (types.Repo, error) {
 	r.Owner, r.Repo = p[0], p[1]
 
 	return r, nil
+}
+
+func parseStructure(structure []string) ([]types.ProductItem, error) {
+	var ps []types.ProductItem
+	for _, item := range structure {
+		structureMatch := structurePattern.FindStringSubmatch(item)
+		if len(structureMatch) != 3 {
+			repo, err := parseRepo(item)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			ps = append(ps, types.ProductItem{
+				Repo: repo,
+			})
+			continue
+		}
+		title, repoRaws := structureMatch[1], structureMatch[2]
+		var children []types.ProductItem
+		for _, repoRaw := range strings.Split(repoRaws, ",") {
+			repoRaw = strings.Trim(repoRaw, " ")
+			repo, err := parseRepo(repoRaw)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			children = append(children, types.ProductItem{
+				Repo: repo,
+			})
+		}
+		ps = append(ps, types.ProductItem{
+			Title:    title,
+			Children: children,
+		})
+	}
+	return ps, nil
 }

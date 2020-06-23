@@ -13,5 +13,13 @@ pull-language = "en"
 
 [[product]]
 name = "tidb"
-repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd", "pingcap/tics"]
-rename = { "pingcap/tics" = "pingcap/tiflash" }
+repos = ["pingcap/tidb", "tikv/tikv", "pingcap/pd", "pingcap/tics",
+  "pingcap/br", "pingcap/dumpling", "pingcap/tidb-lightning", "pingcap/ticdc"]
+rename = {"pingcap/tics" = "PingCAP/TiFlash", "pingcap/tidb" = "PingCAP/TiDB", "tikv/tikv" = "TiKV/TiKV", "pingcap/pd" = "PingCAP/PD", "pingcap/br" = "PingCAP/BR", "pingcap/dumpling" = "PingCAP/Dumpling", "pingcap/tidb-lightning" = "PingCAP/Lightning", "pingcap/ticdc" = "PingCAP/TiCDC"}
+structure = [
+  "pingcap/tidb",
+  "tikv/tikv",
+  "pingcap/pd",
+  "pingcap/tics",
+  "Tools: pingcap/br, pingcap/dumpling, pingcap/tidb-lightning, pingcap/ticdc"
+]

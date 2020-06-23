@@ -24,9 +24,10 @@ type Config struct {
 
 // Product can contain multi repos
 type Product struct {
-	Name   string            `toml:"name"`
-	Repos  []string          `toml:"repos"`
-	Rename map[string]string `toml:"rename"`
+	Name      string            `toml:"name"`
+	Repos     []string          `toml:"repos"`
+	Rename    map[string]string `toml:"rename"`
+	Structure []string          `toml:"structure"`
 }
 
 // New inits config by default
