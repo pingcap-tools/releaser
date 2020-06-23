@@ -10,16 +10,21 @@ import (
 	"github.com/you06/releaser/pkg/types"
 )
 
+const (
+	FOUR_SPACE = "    "
+)
+
 var (
 	releaseNoteLine = regexp.MustCompile(`^- ?(.*?)([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)#([0-9]+).*$`)
 )
 
 // ReleaseNoteLang collects all release notes of a language
 type ReleaseNoteLang struct {
-	Lang      string
-	Path      string
-	RepoNotes []RepoReleaseNotes
-	Version   string
+	Lang               string
+	Path               string
+	ReleaseNoteClasses map[string][]RepoReleaseNotes
+	Structure          []types.ProductItem
+	Version            string
 }
 
 // RepoReleaseNotes defines release notes in a repo
@@ -63,8 +68,10 @@ func ParseContent(content string) ([]ReleaseNote, error) {
 
 // RemoveAllNote remote all notes
 func (r *ReleaseNoteLang) RemoveAllNote() {
-	for k := range r.RepoNotes {
-		r.RepoNotes[k].Notes = nil
+	for k := range r.ReleaseNoteClasses {
+		for i := range r.ReleaseNoteClasses[k] {
+			r.ReleaseNoteClasses[k][i].Notes = nil
+		}
 	}
 }
 
@@ -91,13 +98,67 @@ func (r RepoReleaseNotes) String() string {
 // String ...
 func (r ReleaseNoteLang) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s", r.Version)
-	b.WriteString("\n\n")
-	for index, repoNotes := range r.RepoNotes {
-		b.WriteString(repoNotes.String())
-		if index < len(r.RepoNotes)-1 {
+
+	var writeProjectItems func(b *strings.Builder, depth int, structure []types.ProductItem, repos []RepoReleaseNotes)
+	writeProjectItems = func(b *strings.Builder, depth int, structure []types.ProductItem, repos []RepoReleaseNotes) {
+		for _, projectItem := range structure {
+			// write header
+			if depth == 0 {
+				b.WriteString("+ ")
+			} else if depth == 1 {
+				b.WriteString(FOUR_SPACE)
+				b.WriteString("- ")
+			} else {
+				for i := 0; i < depth; i++ {
+					b.WriteString(FOUR_SPACE)
+				}
+				b.WriteString("* ")
+			}
+
+			// recursive go deeper
+			if projectItem.Title != "" {
+				fmt.Fprintf(b, "%s\n\n", projectItem.Title)
+				writeProjectItems(b, depth+1, projectItem.Children, repos)
+				continue
+			}
+
+			var repo RepoReleaseNotes
+			for _, r := range repos {
+				if r.Repo == projectItem.Repo {
+					repo = r
+					break
+				}
+			}
+
+			// list repos
+			if repo.Rename.Repo != "" {
+				b.WriteString(repo.Rename.Repo)
+			} else {
+				b.WriteString(repo.Repo.Repo)
+			}
+			b.WriteString("\n\n")
+
+			for _, note := range repo.Notes {
+				depth = depth + 1
+				if depth == 1 {
+					b.WriteString(FOUR_SPACE)
+					b.WriteString("- ")
+				} else {
+					for i := 0; i < depth; i++ {
+						b.WriteString(FOUR_SPACE)
+					}
+					b.WriteString("* ")
+				}
+				b.WriteString(note.String())
+				b.WriteString("\n")
+			}
 			b.WriteString("\n")
 		}
+	}
+
+	for class, repos := range r.ReleaseNoteClasses {
+		fmt.Fprintf(&b, "## %s\n\n", class)
+		writeProjectItems(&b, 0, r.Structure, repos)
 	}
 	return b.String()
 }
