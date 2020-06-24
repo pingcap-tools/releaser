@@ -64,10 +64,10 @@ func (c *Collector) ListReleaseNote(product types.Product, version string) ([]pa
 			return notes, errors.Trace(err)
 		}
 		notes = append(notes, parser.ReleaseNoteLang{
-			Lang:      lang,
-			Path:      fullPath,
-			Version:   version,
-			RepoNotes: releaseNotes,
+			Lang:               lang,
+			Path:               fullPath,
+			Version:            version,
+			ReleaseNoteClasses: map[string][]parser.RepoReleaseNotes{"Others": releaseNotes},
 		})
 	}
 	return notes, nil

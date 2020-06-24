@@ -23,3 +23,4 @@ structure = [
   "pingcap/tics",
   "Tools: pingcap/br, pingcap/dumpling, pingcap/tidb-lightning, pingcap/ticdc"
 ]
+label2type={"compatibility-breaker" = "Compatibility Changes", "type/bug-fix" = "Bug Fixes", "type/new-feature" = "New Features"}

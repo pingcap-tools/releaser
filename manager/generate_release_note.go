@@ -95,9 +95,12 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 	if defaultLangReleaseNote == nil {
 		dir := strings.ReplaceAll(m.Config.ReleaseNotePath, "{product}", product.Name)
 		defaultLangReleaseNote = &parser.ReleaseNoteLang{
-			Lang:    m.Config.PullLanguage,
-			Path:    path.Join(dir, fmt.Sprintf("%s.md", strings.TrimLeft(m.Opt.Version, "v"))),
-			Version: milestone.GetTitle(),
+			Name:               product.Name,
+			Lang:               m.Config.PullLanguage,
+			Path:               path.Join(dir, fmt.Sprintf("%s.md", strings.TrimLeft(m.Opt.Version, "v"))),
+			Version:            milestone.GetTitle(),
+			ReleaseNoteClasses: make(map[string][]parser.RepoReleaseNotes),
+			Structure:          product.Structure,
 		}
 	}
 
@@ -106,7 +109,7 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 		if !ok {
 			rename = repo
 		}
-		if err := m.makeReleaseNoteRepoMilestone(repo, rename, defaultLangReleaseNote); err != nil {
+		if err := m.makeReleaseNoteRepoMilestone(product, repo, rename, defaultLangReleaseNote); err != nil {
 			return errors.Trace(err)
 		}
 	}
@@ -127,7 +130,7 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 		}
 	}()
 
-	branch := fmt.Sprintf("%s-%s", "add", strings.TrimLeft(m.Opt.Version, "v"))
+	branch := fmt.Sprintf("%s-%s", "update", strings.TrimLeft(m.Opt.Version, "v"))
 	if err := gitClient.Checkout(branch); err != nil {
 		if err := gitClient.CheckoutNew(branch); err != nil {
 			return errors.Trace(err)
@@ -156,7 +159,7 @@ func (m *Manager) generateReleaseNoteProductMilestone(product types.Product, mil
 	return nil
 }
 
-func (m *Manager) makeReleaseNoteRepoMilestone(repo, rename types.Repo, releaseNote *parser.ReleaseNoteLang) error {
+func (m *Manager) makeReleaseNoteRepoMilestone(product types.Product, repo, rename types.Repo, releaseNote *parser.ReleaseNoteLang) error {
 	if releaseNote == nil {
 		return errors.New("releaseNote cannot be nil")
 	}
@@ -168,23 +171,9 @@ func (m *Manager) makeReleaseNoteRepoMilestone(repo, rename types.Repo, releaseN
 	}
 
 	// get release notes in PR
-	_, pulls, err := m.PullCollector.ListAllMilestoneIssues(repo, milestone)
+	_, pulls, err := m.PullCollector.ListAllMilestoneContents(repo, milestone)
 	if err != nil {
 		return errors.Trace(err)
-	}
-
-	var repoReleaseNote *parser.RepoReleaseNotes
-	for i := range releaseNote.RepoNotes {
-		if releaseNote.RepoNotes[i].Repo.Repo == repo.Repo {
-			repoReleaseNote = &releaseNote.RepoNotes[i]
-		}
-	}
-	if repoReleaseNote == nil {
-		releaseNote.RepoNotes = append(releaseNote.RepoNotes, parser.RepoReleaseNotes{
-			Repo:   repo,
-			Rename: rename,
-		})
-		repoReleaseNote = &releaseNote.RepoNotes[len(releaseNote.RepoNotes)-1]
 	}
 
 	ref := version2ref(m.Opt.Version)
@@ -198,6 +187,26 @@ func (m *Manager) makeReleaseNoteRepoMilestone(repo, rename types.Repo, releaseN
 		}
 		note, has := hasReleaseNote(pull.GetBody())
 		if has {
+			releaseNoteType := getReleaseNoteType(pull, product)
+			if _, ok := releaseNote.ReleaseNoteClasses[releaseNoteType]; !ok {
+				releaseNote.ReleaseNoteClasses[releaseNoteType] = make([]parser.RepoReleaseNotes, 1)
+			}
+
+			var repoReleaseNote *parser.RepoReleaseNotes
+			for i := range releaseNote.ReleaseNoteClasses[releaseNoteType] {
+				if releaseNote.ReleaseNoteClasses[releaseNoteType][i].Repo.Repo == repo.Repo {
+					repoReleaseNote = &releaseNote.ReleaseNoteClasses[releaseNoteType][i]
+					break
+				}
+			}
+			if repoReleaseNote == nil {
+				releaseNote.ReleaseNoteClasses[releaseNoteType] = append(releaseNote.ReleaseNoteClasses[releaseNoteType], parser.RepoReleaseNotes{
+					Repo:   repo,
+					Rename: rename,
+				})
+				repoReleaseNote = &releaseNote.ReleaseNoteClasses[releaseNoteType][len(releaseNote.ReleaseNoteClasses[releaseNoteType])-1]
+			}
+
 			inRepo := false
 			for _, releaseNote := range repoReleaseNote.Notes {
 				if releaseNote.PullNumber == pull.GetNumber() {
@@ -245,6 +254,15 @@ func (m *Manager) forkRepo(repo types.Repo) error {
 
 func now() string {
 	return time.Now().Format("2006-01-02T15:04:05")
+}
+
+func getReleaseNoteType(pull *github.PullRequest, product types.Product) string {
+	for _, label := range pull.Labels {
+		if class, ok := product.Label2Type[label.GetName()]; ok {
+			return class
+		}
+	}
+	return "Others"
 }
 
 func version2ref(version string) string {

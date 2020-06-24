@@ -28,7 +28,7 @@ func (c *Collector) ListPRList(repo types.Repo, version string) ([]*github.PullR
 	if err != nil {
 		return []*github.PullRequest{}, errors.Trace(err)
 	}
-	_, pulls, err := c.ListAllMilestoneIssues(repo, milestone)
+	_, pulls, err := c.ListAllMilestoneContents(repo, milestone)
 	if err != nil {
 		return []*github.PullRequest{}, errors.Trace(err)
 	}
@@ -103,8 +103,8 @@ func (c *Collector) ListAllOpenedMilestones(repo types.Repo) ([]*github.Mileston
 	return all, nil
 }
 
-// ListAllMilestoneIssues lists issues and pull requests in a milestone
-func (c *Collector) ListAllMilestoneIssues(repo types.Repo, milestone *github.Milestone) ([]*github.Issue, []*github.PullRequest, error) {
+// ListAllMilestoneContents lists issues and pull requests in a milestone
+func (c *Collector) ListAllMilestoneContents(repo types.Repo, milestone *github.Milestone) ([]*github.Issue, []*github.PullRequest, error) {
 	var (
 		issues []*github.Issue
 		pulls  []*github.PullRequest

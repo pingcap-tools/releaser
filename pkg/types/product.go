@@ -8,8 +8,9 @@ type ProductItem struct {
 
 // Product struct
 type Product struct {
-	Name      string
-	Repos     []Repo
-	Renames   map[Repo]Repo
-	Structure []ProductItem
+	Name       string
+	Repos      []Repo
+	Renames    map[Repo]Repo
+	Structure  []ProductItem
+	Label2Type map[string]string
 }

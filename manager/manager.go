@@ -120,10 +120,11 @@ func parseProducts(products []config.Product) ([]types.Product, error) {
 			return nil, errors.Trace(err)
 		}
 		p = append(p, types.Product{
-			Name:      product.Name,
-			Repos:     repos,
-			Renames:   renames,
-			Structure: structure,
+			Name:       product.Name,
+			Repos:      repos,
+			Renames:    renames,
+			Structure:  structure,
+			Label2Type: product.Label2Type,
 		})
 	}
 

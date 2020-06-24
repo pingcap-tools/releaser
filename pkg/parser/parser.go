@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/you06/releaser/pkg/types"
@@ -12,6 +13,19 @@ import (
 
 const (
 	FOUR_SPACE = "    "
+	OTHER_TYPE = "Others"
+	HEADER     = `---
+title: {name} {version} Release Notes
+category: Releases
+aliases: ['/docs/dev/releases/{version}/']
+---
+
+# {name} {version} Release Notes
+
+Release date: {date}
+
+TiDB version: {version}`
+	DATE_FORMAT = "January 02, 2006"
 )
 
 var (
@@ -20,6 +34,7 @@ var (
 
 // ReleaseNoteLang collects all release notes of a language
 type ReleaseNoteLang struct {
+	Name               string
 	Lang               string
 	Path               string
 	ReleaseNoteClasses map[string][]RepoReleaseNotes
@@ -95,13 +110,49 @@ func (r RepoReleaseNotes) String() string {
 	return b.String()
 }
 
+func (r ReleaseNoteLang) formatHeader() string {
+	header := strings.ReplaceAll(HEADER, "{name}", r.Name)
+	header = strings.ReplaceAll(header, "{version}", r.Version)
+	header = strings.ReplaceAll(header, "{date}", time.Now().Format(DATE_FORMAT))
+	return header
+}
+
 // String ...
 func (r ReleaseNoteLang) String() string {
 	var b strings.Builder
 
+	b.WriteString(r.formatHeader())
+	b.WriteString("\n\n")
+
+	var haveReleaseNote func(item types.ProductItem, repos []RepoReleaseNotes) bool
+	haveReleaseNote = func(item types.ProductItem, repos []RepoReleaseNotes) bool {
+		if item.Title == "" {
+			var repo RepoReleaseNotes
+			for _, r := range repos {
+				if r.Repo == item.Repo {
+					repo = r
+					break
+				}
+			}
+			return len(repo.Notes) != 0
+		}
+
+		for _, projectItem := range item.Children {
+			if haveReleaseNote(projectItem, repos) {
+				return true
+			}
+		}
+		return false
+	}
+
 	var writeProjectItems func(b *strings.Builder, depth int, structure []types.ProductItem, repos []RepoReleaseNotes)
 	writeProjectItems = func(b *strings.Builder, depth int, structure []types.ProductItem, repos []RepoReleaseNotes) {
 		for _, projectItem := range structure {
+			// skip repos don't have release notes
+			if !haveReleaseNote(projectItem, repos) {
+				continue
+			}
+
 			// write header
 			if depth == 0 {
 				b.WriteString("+ ")
@@ -122,6 +173,7 @@ func (r ReleaseNoteLang) String() string {
 				continue
 			}
 
+			// find repo
 			var repo RepoReleaseNotes
 			for _, r := range repos {
 				if r.Repo == projectItem.Repo {
@@ -139,12 +191,12 @@ func (r ReleaseNoteLang) String() string {
 			b.WriteString("\n\n")
 
 			for _, note := range repo.Notes {
-				depth = depth + 1
-				if depth == 1 {
+				indent := depth + 1
+				if indent == 1 {
 					b.WriteString(FOUR_SPACE)
 					b.WriteString("- ")
 				} else {
-					for i := 0; i < depth; i++ {
+					for i := 0; i < indent; i++ {
 						b.WriteString(FOUR_SPACE)
 					}
 					b.WriteString("* ")
@@ -156,11 +208,21 @@ func (r ReleaseNoteLang) String() string {
 		}
 	}
 
-	for class, repos := range r.ReleaseNoteClasses {
-		fmt.Fprintf(&b, "## %s\n\n", class)
+	for tp, repos := range r.ReleaseNoteClasses {
+		if tp == OTHER_TYPE {
+			continue
+		}
+		fmt.Fprintf(&b, "## %s\n\n", tp)
 		writeProjectItems(&b, 0, r.Structure, repos)
 	}
-	return b.String()
+	if repos, ok := r.ReleaseNoteClasses[OTHER_TYPE]; ok {
+		fmt.Fprintf(&b, "## %s\n\n", OTHER_TYPE)
+		writeProjectItems(&b, 0, r.Structure, repos)
+	}
+
+	// remove last "\n" character, a little hack
+	res := b.String()
+	return res[:len(res)-1]
 }
 
 func Ucfirst(str string) string {
